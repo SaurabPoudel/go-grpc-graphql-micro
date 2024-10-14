@@ -9,7 +9,7 @@ import (
 type Repository interface {
 	Close()
 	PutAccount(ctx context.Context, a Account) error
-	GetAccountByID(ctx context.Context, id string) error
+	GetAccountByID(ctx context.Context, id string) (*Account, error)
 	ListAccounts(ctx context.Context, skip uint64, take uint64) ([]Account, error)
 }
 
@@ -45,10 +45,10 @@ func (r *postgresRepository) PutAccount(ctx context.Context, a Account) error {
 	return err
 }
 
-func (r *postgresRepository) GetAccountByID(ctx context.Context, id string) error {
+func (r *postgresRepository) GetAccountByID(ctx context.Context, id string) (*Account, error) {
 	r.db.ExecContext(ctx, "SELECT id, name FROM account WHERE id = $1", id)
 	a := &Account{}
-	if err != row.Scan(&a.ID, &a.Name); err != nil {
+	if err := row.Scan(&a.ID, &a.Name); err != nil {
 		return nil, err
 	}
 	return a, nil
@@ -77,5 +77,5 @@ func (r *postgresRepository) ListAccounts(ctx context.Context, skip uint64, take
 		}
 	}
 
-	return accouns, nil
+	return accounts, nil
 }
