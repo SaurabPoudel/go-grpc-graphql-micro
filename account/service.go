@@ -2,9 +2,6 @@ package account
 
 import (
 	"context"
-	"fmt"
-	"net"
-
 	"github.com/segmentio/ksuid"
 )
 
