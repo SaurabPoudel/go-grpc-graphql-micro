@@ -6,13 +6,14 @@ import (
 	"log"
 	"net"
 
+	"github.com/SaurabPoudel/go-grpc-graphql-micro/catalog/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
 type grpcServer struct {
-	pb.UnimplementedAccountServiceServer
 	service Service
+	pb.UnimplementedCatalogServiceServer
 }
 
 func ListenGRPC(s Service, port int) error {
@@ -21,14 +22,13 @@ func ListenGRPC(s Service, port int) error {
 		return err
 	}
 	serv := grpc.NewServer()
-	pb.RegisterAccountServiceServer(serv, &grpcServer{
-		UnimplementedAccountServiceServer: pb.UnimplementedAccountServiceServer{},
+	pb.RegisterCatalogServiceServer(serv, &grpcServer{
+		UnimplementedCatalogServiceServer: pb.UnimplementedCatalogServiceServer{},
 		service:                           s,
 	})
 	reflection.Register(serv)
 	return serv.Serve(lis)
 }
-
 func (s *grpcServer) PostProduct(ctx context.Context, r *pb.PostProductRequest) (*pb.PostProductResponse, error) {
 	p, err := s.service.PostProduct(ctx, r.Name, r.Description, r.Price)
 	if err != nil {
@@ -38,8 +38,8 @@ func (s *grpcServer) PostProduct(ctx context.Context, r *pb.PostProductRequest) 
 	return &pb.PostProductResponse{Product: &pb.Product{
 		Id:          p.ID,
 		Name:        p.Name,
-		Description: pb.Description,
-		Price:       pb.Price,
+		Description: p.Description,
+		Price:       p.Price,
 	}}, nil
 }
 
@@ -64,7 +64,7 @@ func (s *grpcServer) GetProducts(ctx context.Context, r *pb.GetProductsRequest) 
 	var err error
 	if r.Query != "" {
 		res, err = s.service.SearchProducts(ctx, r.Query, r.Skip, r.Take)
-	} else if len(r.IDs) != 0 {
+	} else if len(r.Ids) != 0 {
 		res, err = s.service.GetProductsByIDs(ctx, r.Ids)
 	} else {
 		res, err = s.service.GetProducts(ctx, r.Skip, r.Take)
@@ -73,6 +73,7 @@ func (s *grpcServer) GetProducts(ctx context.Context, r *pb.GetProductsRequest) 
 		log.Println(err)
 		return nil, err
 	}
+
 	products := []*pb.Product{}
 	for _, p := range res {
 		products = append(
