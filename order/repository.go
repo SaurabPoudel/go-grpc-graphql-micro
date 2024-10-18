@@ -10,7 +10,7 @@ import (
 type Repository interface {
 	Close()
 	PutOrder(ctx context.Context, o Order) error
-	GetOrdersForAccount(ctx context.Context, accountID string) ([]order, error)
+	GetOrdersForAccount(ctx context.Context, accountID string) ([]Order, error)
 }
 
 type postgresRepository struct {
@@ -26,7 +26,6 @@ func NewPostgresRepository(url string) (Repository, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &postgresRepository{db}, nil
 }
 
@@ -35,7 +34,7 @@ func (r *postgresRepository) Close() {
 }
 
 func (r *postgresRepository) PutOrder(ctx context.Context, o Order) (err error) {
-	r.db.BeginTx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -46,9 +45,10 @@ func (r *postgresRepository) PutOrder(ctx context.Context, o Order) (err error) 
 		}
 		err = tx.Commit()
 	}()
-	tx.ExecContext(
+
+	_, err = tx.ExecContext(
 		ctx,
-		"INSERT INTO orders(id, created_at, account_id, total_price) VALUES ($1, $2, $3, $4)",
+		"INSERT INTO orders(id, created_at, account_id, total_price) VALUES($1, $2, $3, $4)",
 		o.ID,
 		o.CreatedAt,
 		o.AccountID,
@@ -60,47 +60,46 @@ func (r *postgresRepository) PutOrder(ctx context.Context, o Order) (err error) 
 
 	stmt, _ := tx.PrepareContext(ctx, pq.CopyIn("order_products", "order_id", "product_id", "quantity"))
 	for _, p := range o.Products {
-		_, err = stmt.ExecContext(ctx, o.ID, p.ID, p.quantity)
+		_, err = stmt.ExecContext(ctx, o.ID, p.ID, p.Quantity)
 		if err != nil {
 			return
 		}
 	}
-
 	_, err = stmt.ExecContext(ctx)
 	if err != nil {
 		return
 	}
 	stmt.Close()
-	return
 
+	return
 }
 
-func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID string) ([]order, error) {
+func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID string) ([]Order, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
 		`SELECT
-		o.id,
-		o.created_at,
-		o.account_id,
-		o.total_price::money::numeric::float8,
-		op.product_id,
-		op.quantiy
-		FROM orders o JOIN order_products op OP(o.id = order_id)
-		WHERE o.account_id = $1,
-		ORDER BY o.id
-		`,
+      o.id,
+      o.created_at,
+      o.account_id,
+      o.total_price::money::numeric::float8,
+      op.product_id,
+      op.quantity
+    FROM orders o JOIN order_products op ON (o.id = op.order_id)
+    WHERE o.account_id = $1
+    ORDER BY o.id`,
 		accountID,
 	)
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
-	orders := []Order{}
 
+	orders := []Order{}
+	order := &Order{}
 	lastOrder := &Order{}
 	orderedProduct := &OrderedProduct{}
 	products := []OrderedProduct{}
+
 	for rows.Next() {
 		if err = rows.Scan(
 			&order.ID,
