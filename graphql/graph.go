@@ -1,13 +1,18 @@
 package main
 
-import "github.com/99designs/gqlgen/graphql"
+import (
+	"github.com/99designs/gqlgen/graphql"
+	"github.com/SaurabPoudel/go-grpc-graphql-micro/account"
+	"github.com/SaurabPoudel/go-grpc-graphql-micro/catalog"
+	"github.com/SaurabPoudel/go-grpc-graphql-micro/order"
+)
 
 // import "github.com/99designs/gqlgen/graphql"
 
 type Server struct {
-	// accountClient *account.Client
-	// catalogClient *catalog.Client
-	// orderClient   *order.Client
+	accountClient *account.Client
+	catalogClient *catalog.Client
+	orderClient   *order.Client
 }
 
 func NewGraphQLServer(accountUrl, catalogUrl, orderUrl string) (*Server, error) {

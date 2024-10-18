@@ -8,7 +8,7 @@ import (
 )
 
 type Service interface {
-	PostOrder(ctx context, accountID string, products []OrderedProduct) (*Order, error)
+	PostOrder(ctx context.Context, accountID string, products []OrderedProduct) (*Order, error)
 	GetOrdersForAccount(ctx context.Context, accountID string) ([]Order, error)
 }
 
